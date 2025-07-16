@@ -1,19 +1,28 @@
 buildscript {
-    ext.kotlin_version = "1.4.21"
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:4.1.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.android.tools.build:gradle:8.4.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.23"
     }
 }
 
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+    }
+
+    // ✅ 수정된 부분: 모든 프로젝트의 의존성 설정에 규칙을 적용합니다.
+    configurations.all {
+        resolutionStrategy {
+            // 코틀린 라이브러리 버전을 1.9.23으로 강제합니다.
+            force "org.jetbrains.kotlin:kotlin-stdlib:1.9.23"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.23"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.23"
+        }
     }
 }
 
