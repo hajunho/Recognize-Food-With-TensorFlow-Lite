@@ -698,6 +698,9 @@ val foodNameToKorean: Map<String, String> = mapOf(
     "Wodzionka" to "보지온카",
     "Yaksik" to "약식",
     "Yi mein" to "이몐"
+    ,"Unagi" to "장어초밥"
+    ,"Kimchi" to "김치"
+
 )
 
 /**
