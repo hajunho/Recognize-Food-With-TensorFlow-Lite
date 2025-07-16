@@ -2,6 +2,7 @@ package de.inovex.recognizefoodwithtflite
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import android.view.Surface
 import android.view.WindowManager
 import androidx.camera.core.ImageAnalysis
@@ -14,10 +15,16 @@ import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.Rot90Op
 
+
 class ImageAnalyzer(
     private val ctx: Context,
     private val listener: RecognitionListener
 ) : ImageAnalysis.Analyzer {
+
+    companion object {
+        private var labelsPrinted = false
+    }
+
 
     // Initialize the TFLite model
     private val model = LiteModelAiyVisionClassifierFoodV11.newInstance(ctx)
@@ -55,6 +62,20 @@ class ImageAnalyzer(
         // Run inference
         val outputs = model.process(processedImage)
         val probability = outputs.probabilityAsCategoryList
+
+
+
+        // ▼▼▼▼▼ all labels on logcat ▼▼▼▼▼
+        if (probability.isNotEmpty()) {
+            if (!labelsPrinted) {
+                Log.d("ModelLabels", "--- All Supported Labels from Model ---")
+                probability.sortedBy { it.label }.forEach { category ->
+                    Log.d("ModelLabels", category.label)
+                }
+                labelsPrinted = true
+            }
+        }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // Find the best result safely
         val bestResult = probability.maxByOrNull { it.score }
