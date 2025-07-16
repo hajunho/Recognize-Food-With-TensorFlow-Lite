@@ -45,8 +45,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.lifecycleOwner = this
         binding.viewmodel = recognitionListViewModel
 
+        // Initialize TextToSpeech engine.
         tts = TextToSpeech(this, this)
 
+        // Request camera permissions if not already granted.
         if (allPermissionsGranted()) {
             startCamera()
         } else {
@@ -54,12 +56,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Check if all required permissions are granted.
+     */
     private fun allPermissionsGranted(): Boolean {
         return REQUIRED_PERMISSIONS.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
 
+    /**
+     * Handle the result of the permission request.
+     */
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,
@@ -77,6 +85,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Initialize and start the camera preview and image analysis use cases.
+     */
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
@@ -89,6 +100,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .also { analysisUseCase: ImageAnalysis ->
                     analysisUseCase.setAnalyzer(
                         cameraExecutor, ImageAnalyzer(this) { recognition ->
+                            // Switch to the main thread to handle the recognition result.
                             runOnUiThread {
                                 handleRecognition(recognition)
                             }
@@ -100,7 +112,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
 
             try {
+                // Unbind all use cases before rebinding.
                 cameraProvider.unbindAll()
+                // Bind the use cases to the camera.
                 camera = cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageAnalyzer
                 )
@@ -112,50 +126,74 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    /**
+     * Initialize the TextToSpeech engine.
+     * This is called when the TTS service is connected.
+     */
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = tts.setLanguage(Locale.US)
+            // Set the TTS language to Korean.
+            val result = tts.setLanguage(Locale.KOREAN)
 
-            // ✅ Set the speech rate. 1.0f is the default. Lower is slower.
+            // Set the speech rate. 1.0f is the default. Lower is slower.
             tts.setSpeechRate(0.8f)
 
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                Log.e("TTS", "The Language specified is not supported!")
+                Log.e("TTS", "The Korean language is not supported!")
             }
         } else {
             Log.e("TTS", "Initialization Failed!")
         }
     }
 
+    /**
+     * Clean up resources when the activity is destroyed.
+     */
     override fun onDestroy() {
         super.onDestroy()
+        // Shutdown the TTS engine.
         if (::tts.isInitialized) {
             tts.stop()
             tts.shutdown()
         }
+        // Shutdown the camera executor.
         cameraExecutor.shutdown()
     }
 
+    /**
+     * Speak the given text using the TTS engine.
+     */
     private fun speak(text: String) {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "")
     }
 
+    /**
+     * Handle the recognition result from the ImageAnalyzer.
+     * This function translates the label to Korean and updates the UI and TTS.
+     */
     private fun handleRecognition(recognition: Recognition) {
-        recognitionListViewModel.updateData(recognition)
+        // Translate the English label to Korean using the function from foodlist.kt.
+        val koreanName = getKoreanFoodName(recognition.label)
+        // Create a new recognition object with the translated Korean label for the UI.
+        val koreanRecognition = recognition.copy(label = koreanName)
+        // Update the ViewModel with the recognition data containing the Korean name.
+        recognitionListViewModel.updateData(koreanRecognition)
 
+        // Compare with the original English label to decide if the recognized object has changed.
         if (lastRecognizedLabel != recognition.label) {
-            lastRecognizedLabel = recognition.label
+            lastRecognizedLabel = recognition.label // Store the original English label.
             lastRecognitionTime = System.currentTimeMillis()
             hasSpoken = false
             return
         }
 
+        // Speak the Korean name only if the same object has been recognized for at least 2 seconds.
         if (!hasSpoken) {
             val currentTime = System.currentTimeMillis()
             val duration = currentTime - lastRecognitionTime
 
             if (duration >= 2000) {
-                speak(recognition.label)
+                speak(koreanName) // Speak the translated Korean name.
                 hasSpoken = true
             }
         }
